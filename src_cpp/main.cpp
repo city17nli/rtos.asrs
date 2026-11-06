@@ -2,11 +2,12 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 
-// 2次元座標を扱う構造体
-struct Position {
-    int x;
-    int y;
+// 座標を扱う構造体
+struct Position { 
+    int x, y; 
 };
 
 // AGVクラス
@@ -14,97 +15,111 @@ class AGV {
 public:
     int id;
     Position pos;
-
-    // コンストラクタ（生成時にIDと初期座標をセット）
     AGV(int id, int x, int y) : id(id), pos{x, y} {}
 };
 
 // シミュレータ全体を管理するクラス
 class Simulator {
 private:
-    std::vector<std::string> grid; // マップデータ
-    std::vector<AGV> agvs;         // AGVのリスト
-    int map_width;
-    int map_height;
+    std::vector<std::string> grid;
+    std::vector<AGV> agvs;
+    int map_width, map_height;
 
 public:
-    Simulator() : map_width(0), map_height(0) {}
+    Simulator() : map_width(0), map_height(0) { 
+        std::srand(std::time(nullptr)); // 乱数の初期化
+    }
 
-    // 1. マップファイルの読み込み
+    // マップ読み込み
     bool loadMap(const std::string& filename) {
         std::ifstream file(filename);
-        if (!file.is_open()) {
-            std::cerr << "エラー: マップファイル '" << filename << "' が開けません。" << std::endl;
-            return false;
-        }
-
+        if (!file.is_open()) return false;
+        
         std::string line;
         while (std::getline(file, line)) {
-            // Windowsの改行コード(CRLF)対策: 末尾の '\r' を削除
-            if (!line.empty() && line.back() == '\r') {
-                line.pop_back();
-            }
+            if (!line.empty() && line.back() == '\r') line.pop_back();
             grid.push_back(line);
         }
-        file.close();
-
-        if (grid.empty()) return false;
-
         map_height = grid.size();
-        map_width = grid[0].size();
+        map_width = grid.empty() ? 0 : grid[0].size();
         return true;
     }
 
-    // 2. AGVの初期配置
-    void initAGVs(int agv_count) {
-        std::vector<Position> spawn_points;
-
-        // マップ全体を走査して生成地 'o' の座標をリストアップ
-        // (yが縦方向, xが横方向)
+    // AGV初期配置
+    void initAGVs(int count) {
         for (int y = 0; y < map_height; ++y) {
             for (int x = 0; x < map_width; ++x) {
-                if (grid[y][x] == 'o') {
-                    spawn_points.push_back({x, y});
+                if (grid[y][x] == 'o' && agvs.size() < count) {
+                    agvs.push_back(AGV(agvs.size() + 1, x, y));
                 }
             }
         }
+    }
 
-        // 指定された台数（5台）だけAGVを生成してリストに追加
-        for (int i = 0; i < agv_count && i < spawn_points.size(); ++i) {
-            // IDは1から割り当て
-            agvs.push_back(AGV(i + 1, spawn_points[i].x, spawn_points[i].y));
+    // ランダムに1マス移動（壁 'w' 以外なら進む）
+    void randomWalk() {
+        int dx[] = {0, 0, -1, 1}; // 上, 下, 左, 右
+        int dy[] = {-1, 1, 0, 0};
+        for (auto& agv : agvs) {
+            int dir = std::rand() % 4;
+            int nx = agv.pos.x + dx[dir];
+            int ny = agv.pos.y + dy[dir];
+            if (nx >= 0 && nx < map_width && ny >= 0 && ny < map_height) {
+                if (grid[ny][nx] != 'w' && grid[ny][nx] != 's') { // 壁や他のAGVがいない場合
+                    agv.pos.x = nx;
+                    agv.pos.y = ny;
+                }
+            }
         }
     }
 
-    // 3. 現在の情報をコンソールに出力
-    void printState() {
-        std::cout << "=== Map Data (" << map_width << "x" << map_height << ") ===" << std::endl;
-        for (const auto& row : grid) {
-            std::cout << row << std::endl;
+    // JSONファイルへ出力する処理
+    void exportJSON(const std::string& filename, int steps) {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Error: Cannot open output file '" << filename << "'" << std::endl;
+            return;
         }
 
-        std::cout << "\n=== AGV Initial Positions ===" << std::endl;
-        for (const auto& agv : agvs) {
-            std::cout << "AGV ID: " << agv.id 
-                      << " | Position: (x: " << agv.pos.x << ", y: " << agv.pos.y << ")" << std::endl;
+        // JSONの書き出し開始
+        file << "{\n\"map\": [\n";
+        for (size_t i = 0; i < grid.size(); ++i) {
+            file << "\"" << grid[i] << "\"" << (i == grid.size() - 1 ? "" : ",") << "\n";
         }
+        file << "],\n\"history\": [\n";
+
+        // 指定ステップ数だけシミュレーションを回して座標を記録
+        for (int step = 0; step < steps; ++step) {
+            file << "  [";
+            for (size_t i = 0; i < agvs.size(); ++i) {
+                file << "{\"id\":" << agvs[i].id << ",\"x\":" << agvs[i].pos.x << ",\"y\":" << agvs[i].pos.y << "}";
+                if (i < agvs.size() - 1) file << ",";
+            }
+            file << "]";
+            if (step < steps - 1) file << ",\n";
+            
+            randomWalk(); // 次のステップへ移動
+        }
+        
+        file << "\n]\n}\n";
+        file.close();
+        std::cout << "Simulation Complete: Exported to " << filename << std::endl;
     }
 };
 
 int main() {
     Simulator sim;
-
-    // rtos.asrs フォルダ直下にある map_ex.txt を読み込む想定
-    if (!sim.loadMap("../map_ex.txt")) { 
-        // 実行場所によっては "map_ex.txt" に変更してください
+    
+    // マップ読み込み
+    if (!sim.loadMap("map/map_ex.txt")) {
+        std::cerr << "Error: Cannot open map file 'map_ex.txt'" << std::endl;
         return 1;
     }
-
-    // AGVを5台初期配置
-    sim.initAGVs(5);
-
-    // 状態をコンソールに出力
-    sim.printState();
-
+    
+    sim.initAGVs(5); // AGVを5台配置
+    
+    // output/history.json に30ステップ分のデータを出力
+    sim.exportJSON("output/history.json", 30); 
+    
     return 0;
 }

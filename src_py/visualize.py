@@ -1,21 +1,19 @@
 import json
-import pygame
-import sys
-import time
+import tkinter as tk
 
 # --- 設定 ---
 CELL_SIZE = 40  # 1マスのピクセルサイズ
-FPS = 5         # 1秒間に進むステップ数（アニメーション速度）
+FPS_MS = 200    # 1ステップの表示時間（ミリ秒）200ms = 5FPS
 
-# 色の定義 (R, G, B)
+# 色の定義 (Tkinterで使えるカラーネームまたはカラーコード)
 COLORS = {
-    'w': (100, 100, 100),  # 壁（グレー）
-    '.': (240, 240, 240),  # 通路（薄いグレー）
-    'o': (200, 220, 255),  # 待機所（薄い青）
-    's': (220, 180, 120),  # 棚（茶色）
-    'r': (255, 200, 200)   # 完了地（薄い赤）
+    'w': 'gray',        # 壁
+    '.': 'white',       # 通路
+    'o': 'lightblue',   # 待機所
+    's': 'orange',      # 棚
+    'r': 'pink'         # 完了地
 }
-AGV_COLOR = (255, 50, 50)  # AGV（赤）
+AGV_COLOR = 'red'
 
 def main():
     # 1. JSONデータの読み込み
@@ -23,7 +21,7 @@ def main():
         with open("output/history.json", "r") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print("エラー: output/history.json が見つかりません。先にC++を実行してください。")
+        print("エラー: output/history.json が見つかりません。")
         return
 
     grid = data["map"]
@@ -32,57 +30,50 @@ def main():
     width = len(grid[0])
     height = len(grid)
 
-    # 2. Pygame初期化
-    pygame.init()
-    screen = pygame.display.set_mode((width * CELL_SIZE, height * CELL_SIZE))
-    pygame.display.set_caption("ASRS Simulator - Phase 1")
-    clock = pygame.time.Clock()
+    # 2. Tkinterウィンドウとキャンバスの準備
+    root = tk.Tk()
+    root.title("ASRS Simulator - Tkinter Version")
+    
+    # 描画領域（キャンバス）の作成
+    canvas = tk.Canvas(root, width=width * CELL_SIZE, height=height * CELL_SIZE)
+    canvas.pack()
 
-    step = 0
-    running = True
+    # 3. マップの描画（背景として1回だけ描く）
+    for y, row in enumerate(grid):
+        for x, cell in enumerate(row):
+            color = COLORS.get(cell, 'black')
+            x1, y1 = x * CELL_SIZE, y * CELL_SIZE
+            x2, y2 = x1 + CELL_SIZE, y1 + CELL_SIZE
+            canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='lightgray')
 
-    # 3. メインループ
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    # 4. アニメーション関数
+    def animate(step):
+        # 以前のステップのAGVを消去（"agv"というタグがついた図形だけ消す）
+        canvas.delete("agv")
 
-        screen.fill((0, 0, 0))
-
-        # マップの描画
-        for y, row in enumerate(grid):
-            for x, cell in enumerate(row):
-                color = COLORS.get(cell, (0,0,0))
-                rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-                pygame.draw.rect(screen, color, rect)
-                pygame.draw.rect(screen, (200,200,200), rect, 1) # グリッド線
-
-        # AGVの描画
+        # 現在のステップのAGVを描画
         if step < len(history):
-            agvs_current = history[step]
-            for agv in agvs_current:
-                center_x = int(agv["x"] * CELL_SIZE + CELL_SIZE / 2)
-                center_y = int(agv["y"] * CELL_SIZE + CELL_SIZE / 2)
-                pygame.draw.circle(screen, AGV_COLOR, (center_x, center_y), int(CELL_SIZE * 0.4))
+            for agv in history[step]:
+                cx = agv["x"] * CELL_SIZE + CELL_SIZE / 2
+                cy = agv["y"] * CELL_SIZE + CELL_SIZE / 2
+                r = CELL_SIZE * 0.4
                 
-                # IDの描画
-                font = pygame.font.SysFont(None, 24)
-                text = font.render(str(agv["id"]), True, (255, 255, 255))
-                text_rect = text.get_rect(center=(center_x, center_y))
-                screen.blit(text, text_rect)
+                # 丸（AGV）を描画
+                canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=AGV_COLOR, tags="agv")
+                # ID（文字）を描画
+                canvas.create_text(cx, cy, text=str(agv["id"]), fill="white", tags="agv")
             
-            # ステップ数を進める
-            step += 1
+            # 指定時間（FPS_MS）後に、次のステップを呼び出す
+            root.after(FPS_MS, animate, step + 1)
         else:
-            # 終了したらループ（最初から再生）
-            time.sleep(1)
-            step = 0
+            # 終了したら少し待って最初からループ
+            root.after(1000, animate, 0)
 
-        pygame.display.flip()
-        clock.tick(FPS)
+    # アニメーション開始（ステップ0から）
+    animate(0)
 
-    pygame.quit()
-    sys.exit()
+    # ウィンドウを表示し続ける
+    root.mainloop()
 
 if __name__ == "__main__":
     main()
