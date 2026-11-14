@@ -29,6 +29,7 @@ UNASSIGNED = 'unassigned'   # 未割当
 TO_PICKUP = 'to_pickup'     # 割り当て済み・荷物を受け取りに向かっている
 CARRYING = 'carrying'       # 荷物を積んで配送中
 DONE = 'done'               # 完了
+NOT_CREATED = 'not_created' # まだ発生していない
 
 
 def compute_task_states(tasks, history):
@@ -38,11 +39,12 @@ def compute_task_states(tasks, history):
     - どこかのAGVが担当している → 状態2なら carrying、それ以外は to_pickup
     - 担当AGVがいない → まだ誰にも担当されていなければ unassigned、
       一度でも担当されたあとなら done
+    - タスクの発生ステップ(created)より前なら not_created（まだ存在しない）
     """
     task_states = []
     ever_assigned = set()  # これまでに一度でも担当されたタスクid
 
-    for step_agvs in history:
+    for step, step_agvs in enumerate(history):
         # このステップで担当されているタスクを集める
         active = {}
         for agv in step_agvs:
@@ -58,7 +60,9 @@ def compute_task_states(tasks, history):
         states = {}
         for task in tasks:
             tid = task["id"]
-            if tid in active:
+            if step < task.get("created", 0):
+                states[tid] = NOT_CREATED
+            elif tid in active:
                 states[tid] = active[tid]
             elif tid in ever_assigned:
                 states[tid] = DONE
@@ -75,7 +79,7 @@ def main():
         with open("output/history.json", "r") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print("エラー: output/history.json が見つかりません。")
+        print("error: can`t find output/history.json")
         return
 
     grid = data["map"]
@@ -181,12 +185,13 @@ def main():
                                         fill=TASK_UNASSIGNED_COLOR, outline='black', tags="dyn")
 
     def draw_status(step):
-        states = task_states[step].values()
+        states = list(task_states[step].values())
+        created = sum(1 for s in states if s != NOT_CREATED)  # 発生済みのタスク数
         done = sum(1 for s in states if s == DONE)
         waiting = sum(1 for s in states if s == UNASSIGNED)
-        working = len(task_states[step]) - done - waiting
-        text = "ステップ {}/{}    タスク: 完了 {} / 全体 {}    未割当 {}    進行中 {}".format(
-            step + 1, len(history), done, len(tasks), waiting, working)
+        working = created - done - waiting
+        text = "ステップ {}/{}    タスク: 完了 {} / 発生済み {}    未割当 {}    進行中 {}".format(
+            step + 1, len(history), done, created, waiting, working)
         canvas.create_text(10, panel_top + 18, text=text, anchor='w',
                            font=("", 10, "bold"), tags="dyn")
 

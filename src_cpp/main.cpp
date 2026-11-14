@@ -44,6 +44,7 @@ public:
     Position destination; // 配送先（配送口 'r'）
     TaskState state;
     int agv_id;           // 担当AGVのid（なければ -1）
+    int created_step;     // タスクが発生したステップ
 };
 
 // シミュレータ全体を管理するクラス
@@ -53,6 +54,7 @@ private:
     std::vector<AGV> agvs;
     std::vector<Task> tasks;
     int map_width, map_height;
+    int spawn_percent; // 1ステップごとにタスクが発生する確率（%）
 
     // 移動方向 上, 下, 左, 右
     int dx[4] = {0, 0, -1, 1};
@@ -108,7 +110,7 @@ private:
     }
 
 public:
-    Simulator() : map_width(0), map_height(0) {
+    Simulator() : map_width(0), map_height(0), spawn_percent(0) {
         std::srand(std::time(nullptr)); // 乱数の初期化
     }
 
@@ -148,13 +150,25 @@ public:
         }
     }
 
-    // タスクを count 個、重ならないようにランダムな棚に発生させる
-    void generateTasks(int count) {
-        // 候補1: 棚のマスのうち、左右どちらかが通路のもの（AGVが荷物を取れる棚）
+    // その棚のマスに、まだ完了していないタスクがあるか判定
+    bool hasActiveTask(int x, int y) {
+        for (size_t i = 0; i < tasks.size(); ++i) {
+            if (tasks[i].state != TASK_DONE && tasks[i].shelf.x == x && tasks[i].shelf.y == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // タスクを1つ、空いている棚のどこかに発生させる（発生できたら true）
+    // 未完了のタスクがある棚は選ばない（＝タスク同士が重ならない）
+    bool spawnTask(int created_step) {
+        // 候補1: 左右どちらかが通路で、未完了のタスクが載っていない棚のマス
         std::vector<Position> candidates;
         for (int y = 0; y < map_height; ++y) {
             for (int x = 0; x < map_width; ++x) {
-                if (grid[y][x] == 's' && (canPass(x - 1, y) || canPass(x + 1, y))) {
+                if (grid[y][x] == 's' && (canPass(x - 1, y) || canPass(x + 1, y))
+                    && !hasActiveTask(x, y)) {
                     Position p;
                     p.x = x;
                     p.y = y;
@@ -162,6 +176,7 @@ public:
                 }
             }
         }
+        if (candidates.empty()) return false; // 空いている棚がない
 
         // 候補2: 配送口 'r' のマス
         std::vector<Position> ports;
@@ -175,40 +190,48 @@ public:
                 }
             }
         }
-        if (ports.empty()) return;
+        if (ports.empty()) return false;
 
-        int next_id = 1;
-        for (int n = 0; n < count && !candidates.empty(); ++n) {
-            // 棚をランダムに1つ選び、候補から外す（＝同じ棚に2つ発生しない）
-            int idx = std::rand() % candidates.size();
-            Position shelf = candidates[idx];
-            candidates.erase(candidates.begin() + idx);
+        // 棚をランダムに1つ選ぶ
+        Position shelf = candidates[std::rand() % candidates.size()];
 
-            // 受け取りマス：左右のうち通れるほうを選ぶ（両方通れるならランダム）
-            std::vector<Position> sides;
-            if (canPass(shelf.x - 1, shelf.y)) {
-                Position p;
-                p.x = shelf.x - 1;
-                p.y = shelf.y;
-                sides.push_back(p);
-            }
-            if (canPass(shelf.x + 1, shelf.y)) {
-                Position p;
-                p.x = shelf.x + 1;
-                p.y = shelf.y;
-                sides.push_back(p);
-            }
-
-            Task t;
-            t.id = next_id;
-            t.shelf = shelf;
-            t.pickup = sides[std::rand() % sides.size()];
-            t.destination = ports[std::rand() % ports.size()];
-            t.state = TASK_UNASSIGNED;
-            t.agv_id = -1;
-            tasks.push_back(t);
-            next_id++;
+        // 受け取りマス：左右のうち通れるほうを選ぶ（両方通れるならランダム）
+        std::vector<Position> sides;
+        if (canPass(shelf.x - 1, shelf.y)) {
+            Position p;
+            p.x = shelf.x - 1;
+            p.y = shelf.y;
+            sides.push_back(p);
         }
+        if (canPass(shelf.x + 1, shelf.y)) {
+            Position p;
+            p.x = shelf.x + 1;
+            p.y = shelf.y;
+            sides.push_back(p);
+        }
+
+        Task t;
+        t.id = tasks.size() + 1; // タスクは消さないので、個数+1 がそのまま連番になる
+        t.shelf = shelf;
+        t.pickup = sides[std::rand() % sides.size()];
+        t.destination = ports[std::rand() % ports.size()];
+        t.state = TASK_UNASSIGNED;
+        t.agv_id = -1;
+        t.created_step = created_step;
+        tasks.push_back(t);
+        return true;
+    }
+
+    // 開始時に count 個のタスクをまとめて発生させる
+    void generateTasks(int count) {
+        for (int n = 0; n < count; ++n) {
+            if (!spawnTask(0)) break;
+        }
+    }
+
+    // 1ステップごとにタスクが発生する確率（%）を設定する
+    void setSpawnRate(int percent) {
+        spawn_percent = percent;
     }
 
     // 待機中のAGVに、未割当のタスクを（idの小さい順に）割り当てる
@@ -284,8 +307,12 @@ public:
         }
     }
 
-    // 1ステップ分の更新
-    void update() {
+    // 1ステップ分の更新（next_step は更新後のステップ番号）
+    void update(int next_step) {
+        // 一定の確率で、新しいタスクが発生する
+        if (std::rand() % 100 < spawn_percent) {
+            spawnTask(next_step);
+        }
         assignTasks();
         moveAGVs();
     }
@@ -304,18 +331,7 @@ public:
             file << "\"" << grid[i] << "\"" << (i == grid.size() - 1 ? "" : ",") << "\n";
         }
 
-        // タスク一覧（発生時点の情報）
-        file << "],\n\"tasks\": [\n";
-        for (size_t i = 0; i < tasks.size(); ++i) {
-            file << "  {\"id\":" << tasks[i].id
-                 << ",\"shelf\":[" << tasks[i].shelf.x << "," << tasks[i].shelf.y << "]"
-                 << ",\"pickup\":[" << tasks[i].pickup.x << "," << tasks[i].pickup.y << "]"
-                 << ",\"destination\":[" << tasks[i].destination.x << "," << tasks[i].destination.y << "]}";
-            if (i < tasks.size() - 1) file << ",";
-            file << "\n";
-        }
-
-        // 各ステップのAGVの様子
+        // 各ステップのAGVの様子（シミュレーションしながら書き出す）
         file << "],\n\"history\": [\n";
         for (int step = 0; step < steps; ++step) {
             file << "  [";
@@ -330,10 +346,21 @@ public:
             file << "]";
             if (step < steps - 1) file << ",\n";
 
-            update(); // 次のステップへ
+            update(step + 1); // 次のステップへ
         }
 
-        file << "\n]\n}\n";
+        // タスク一覧（タスクは途中で増えるので、シミュレーション後に書き出す）
+        file << "\n],\n\"tasks\": [\n";
+        for (size_t i = 0; i < tasks.size(); ++i) {
+            file << "  {\"id\":" << tasks[i].id
+                 << ",\"created\":" << tasks[i].created_step
+                 << ",\"shelf\":[" << tasks[i].shelf.x << "," << tasks[i].shelf.y << "]"
+                 << ",\"pickup\":[" << tasks[i].pickup.x << "," << tasks[i].pickup.y << "]"
+                 << ",\"destination\":[" << tasks[i].destination.x << "," << tasks[i].destination.y << "]}";
+            if (i < tasks.size() - 1) file << ",";
+            file << "\n";
+        }
+        file << "]\n}\n";
         file.close();
 
         // 結果のまとめを表示
@@ -342,7 +369,7 @@ public:
             if (tasks[i].state == TASK_DONE) done++;
         }
         std::cout << "Simulation Complete: Exported to " << filename << std::endl;
-        std::cout << "Tasks done: " << done << " / " << tasks.size() << std::endl;
+        std::cout << "Tasks done: " << done << " / " << tasks.size() << " (generated)" << std::endl;
     }
 };
 
@@ -355,11 +382,12 @@ int main() {
         return 1;
     }
 
-    sim.initAGVs(5);       // AGVを5台配置
-    sim.generateTasks(8);  // タスクを8個発生
+    sim.initAGVs(32);       // AGVを32台配置
+    sim.generateTasks(25);   // 開始時に25個のタスクを発生
+    sim.setSpawnRate(20);   // 以降、1ステップごとに130%の確率で新しいタスクが発生
 
-    // output/history.json に120ステップ分のデータを出力
-    sim.exportJSON("output/history.json", 120);
+    // output/history.json に200ステップ分のデータを出力
+    sim.exportJSON("output/history.json", 200);
 
     return 0;
 }
