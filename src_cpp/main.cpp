@@ -384,7 +384,7 @@ int main() {
 
     sim.initAGVs(32);       // AGVを32台配置
     sim.generateTasks(25);   // 開始時に25個のタスクを発生
-    sim.setSpawnRate(20);   // 以降、1ステップごとに130%の確率で新しいタスクが発生
+    sim.setSpawnRate(20);   // 以降、1ステップごとに20%の確率で新しいタスクが発生
 
     // output/history.json に200ステップ分のデータを出力
     sim.exportJSON("output/history.json", 200);
