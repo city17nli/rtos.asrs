@@ -1,0 +1,21 @@
+{
+  "map": ["wwooooooww", "w........w", "w.ss..ss.w", "w.ss..ss.w", "w.ss..ss.w", "w.ss..ss.w", "w.ss..ss.w", "w.ss..ss.w", "w........w", "wwwrwwrwww"],
+  "width": 10,
+  "height": 10,
+  "frames": [
+    {"t": 0, "agvs": [{"id": 0, "x": 2, "y": 0, "state": "moving"}, {"id": 1, "x": 3, "y": 0, "state": "moving"}, {"id": 2, "x": 4, "y": 0, "state": "moving"}, {"id": 3, "x": 5, "y": 0, "state": "moving"}, {"id": 4, "x": 6, "y": 0, "state": "moving"}, {"id": 5, "x": 7, "y": 0, "state": "moving"}]},
+    {"t": 1, "agvs": [{"id": 0, "x": 2, "y": 1, "state": "moving"}, {"id": 1, "x": 3, "y": 1, "state": "moving"}, {"id": 2, "x": 4, "y": 1, "state": "moving"}, {"id": 3, "x": 5, "y": 1, "state": "moving"}, {"id": 4, "x": 6, "y": 1, "state": "moving"}, {"id": 5, "x": 7, "y": 1, "state": "moving"}]},
+    {"t": 2, "agvs": [{"id": 0, "x": 1, "y": 1, "state": "moving"}, {"id": 1, "x": 3, "y": 1, "state": "waiting"}, {"id": 2, "x": 4, "y": 2, "state": "moving"}, {"id": 3, "x": 5, "y": 2, "state": "moving"}, {"id": 4, "x": 5, "y": 1, "state": "moving"}, {"id": 5, "x": 6, "y": 1, "state": "moving"}]},
+    {"t": 3, "agvs": [{"id": 0, "x": 1, "y": 2, "state": "moving"}, {"id": 1, "x": 4, "y": 1, "state": "moving"}, {"id": 2, "x": 4, "y": 3, "state": "moving"}, {"id": 3, "x": 5, "y": 3, "state": "moving"}, {"id": 4, "x": 5, "y": 2, "state": "moving"}, {"id": 5, "x": 5, "y": 1, "state": "moving"}]},
+    {"t": 4, "agvs": [{"id": 0, "x": 1, "y": 3, "state": "moving"}, {"id": 1, "x": 4, "y": 2, "state": "moving"}, {"id": 2, "x": 4, "y": 4, "state": "moving"}, {"id": 3, "x": 5, "y": 4, "state": "moving"}, {"id": 4, "x": 5, "y": 3, "state": "moving"}, {"id": 5, "x": 5, "y": 2, "state": "moving"}]},
+    {"t": 5, "agvs": [{"id": 0, "x": 1, "y": 4, "state": "moving"}, {"id": 1, "x": 4, "y": 3, "state": "moving"}, {"id": 2, "x": 4, "y": 5, "state": "moving"}, {"id": 3, "x": 5, "y": 5, "state": "moving"}, {"id": 4, "x": 5, "y": 4, "state": "moving"}, {"id": 5, "x": 5, "y": 3, "state": "moving"}]},
+    {"t": 6, "agvs": [{"id": 0, "x": 1, "y": 5, "state": "moving"}, {"id": 1, "x": 4, "y": 4, "state": "moving"}, {"id": 2, "x": 4, "y": 6, "state": "moving"}, {"id": 3, "x": 5, "y": 6, "state": "moving"}, {"id": 4, "x": 5, "y": 5, "state": "moving"}, {"id": 5, "x": 5, "y": 4, "state": "moving"}]},
+    {"t": 7, "agvs": [{"id": 0, "x": 1, "y": 6, "state": "moving"}, {"id": 1, "x": 4, "y": 5, "state": "moving"}, {"id": 2, "x": 4, "y": 7, "state": "moving"}, {"id": 3, "x": 5, "y": 7, "state": "moving"}, {"id": 4, "x": 5, "y": 6, "state": "moving"}, {"id": 5, "x": 5, "y": 5, "state": "moving"}]},
+    {"t": 8, "agvs": [{"id": 0, "x": 1, "y": 7, "state": "moving"}, {"id": 1, "x": 4, "y": 6, "state": "moving"}, {"id": 2, "x": 4, "y": 8, "state": "moving"}, {"id": 3, "x": 5, "y": 8, "state": "moving"}, {"id": 4, "x": 5, "y": 7, "state": "moving"}, {"id": 5, "x": 5, "y": 6, "state": "moving"}]},
+    {"t": 9, "agvs": [{"id": 0, "x": 1, "y": 8, "state": "moving"}, {"id": 1, "x": 4, "y": 7, "state": "moving"}, {"id": 2, "x": 3, "y": 8, "state": "moving"}, {"id": 3, "x": 6, "y": 8, "state": "moving"}, {"id": 4, "x": 5, "y": 8, "state": "moving"}, {"id": 5, "x": 5, "y": 7, "state": "moving"}]},
+    {"t": 10, "agvs": [{"id": 0, "x": 2, "y": 8, "state": "moving"}, {"id": 1, "x": 4, "y": 8, "state": "moving"}, {"id": 2, "x": 3, "y": 9, "state": "returning"}, {"id": 3, "x": 6, "y": 9, "state": "returning"}, {"id": 4, "x": 5, "y": 8, "state": "waiting"}, {"id": 5, "x": 5, "y": 7, "state": "waiting"}]},
+    {"t": 11, "agvs": [{"id": 0, "x": 3, "y": 8, "state": "moving"}, {"id": 1, "x": 4, "y": 8, "state": "waiting"}, {"id": 2, "x": 3, "y": 9, "state": "waiting"}, {"id": 3, "x": 6, "y": 8, "state": "returning"}, {"id": 4, "x": 5, "y": 8, "state": "waiting"}, {"id": 5, "x": 5, "y": 7, "state": "waiting"}]},
+    {"t": 12, "agvs": [{"id": 0, "x": 3, "y": 8, "state": "waiting"}, {"id": 1, "x": 4, "y": 8, "state": "waiting"}, {"id": 2, "x": 3, "y": 9, "state": "waiting"}, {"id": 3, "x": 6, "y": 8, "state": "waiting"}, {"id": 4, "x": 5, "y": 8, "state": "waiting"}, {"id": 5, "x": 5, "y": 7, "state": "waiting"}]}
+  ],
+  "result": {"finished": false, "ticks": 12}
+}
